@@ -46,7 +46,7 @@ public:
         Ztl_bstr_t sAbsoluteUOL = pArchive->absoluteUOL; // keep the string alive while we look at it
         const wchar_t* sUOL = static_cast<const wchar_t*>(sAbsoluteUOL);
         const bool bAddNewNodes = sUOL && (wcsncmp(sUOL, L"Skill/", 6) == 0 || wcsncmp(sUOL, L"String/", 7) == 0);
-        FsLog("merge %ls (add new nodes: %d)", sUOL ? sUOL : L"?", bAddNewNodes ? 1 : 0);
+        FsDebug("wz", "merge %ls (add new nodes: %d)", sUOL ? sUOL : L"?", bAddNewNodes ? 1 : 0);
         IEnumVARIANTPtr pEnum = pProperty->_NewEnum;
         while (true) {
             Ztl_variant_t vNext;
@@ -69,14 +69,14 @@ public:
                 HRESULT hrGet = this->get_item(sNext, &vExisting);
                 bool bMissing = FAILED(hrGet) || V_VT(&vExisting) == VT_EMPTY;
                 VariantClear(&vExisting);
-                FsLog("  sub-property %ls: get_item hr=0x%08X missing=%d", static_cast<const wchar_t*>(sNext), static_cast<unsigned>(hrGet), bMissing ? 1 : 0);
+                FsDebug("wz", "  sub-property %ls: get_item hr=0x%08X missing=%d", static_cast<const wchar_t*>(sNext), static_cast<unsigned>(hrGet), bMissing ? 1 : 0);
                 if (bMissing) {
                     this->Add(sNext, pProperty->item[sNext], false);
-                    FsLog("  added %ls", static_cast<const wchar_t*>(sNext));
+                    FsLog("wz", "Custom.wz added %ls/%ls", sUOL ? sUOL : L"?", static_cast<const wchar_t*>(sNext));
                 }
             }
         }
-        FsLog("merge %ls done", sUOL ? sUOL : L"?");
+        FsDebug("wz", "merge %ls done", sUOL ? sUOL : L"?");
         return S_OK;
     }
 };
@@ -84,8 +84,7 @@ public:
 
 void CWvsApp::InitializeResMan_hook() {
     DEBUG_MESSAGE("CWvsApp::InitializeResMan");
-    DeleteFileA(".\\FreedomStory.log");
-    FsLog("FreedomStory client " FREEDOMSTORY_BUILD " - InitializeResMan");
+    FsLog("wz", "loading game data");
     CWvsApp::InitializeResMan(this);
 
     // add custom namespace to root
@@ -146,7 +145,7 @@ void CWvsApp::InitializeResMan_hook() {
         }
     }
     std::sort(g_vecOverrides.begin(), g_vecOverrides.end()); // uses operator<
-    FsLog("Custom.wz: %u override paths", static_cast<unsigned>(g_vecOverrides.size()));
+    FsLog("wz", "Custom.wz loaded: %u override paths", static_cast<unsigned>(g_vecOverrides.size()));
 
     // NameSpace.dll - try resolving from g_pCustomNameSpace
     IWzNameSpaceImpl::raw__OnGetLocalObject_orig = static_cast<IWzNameSpaceImpl::raw__OnGetLocalObject_t>(GetAddressByPattern("NAMESPACE.DLL", "B8 ?? ?? ?? ?? E8 ?? ?? ?? ?? 81 EC 80"));

@@ -27,6 +27,7 @@ public:
 int CUserLocal::DoActiveSkill_hook(int nSkillID, int nScanCode, int* pnConsumeCheck) {
     for (const auto& alias : g_aSkillAlias) {
         if (nSkillID == alias.nCopy) {
+            FsDebug("skill", "alias %d -> %d", nSkillID, alias.nOriginal);
             nSkillID = alias.nOriginal;
             break;
         }
@@ -35,5 +36,6 @@ int CUserLocal::DoActiveSkill_hook(int nSkillID, int nScanCode, int* pnConsumeCh
 }
 
 void AttachFreedomStoryMods() {
-    ATTACH_HOOK(CUserLocal::DoActiveSkill, CUserLocal::DoActiveSkill_hook);
+    bool bOk = ATTACH_HOOK(CUserLocal::DoActiveSkill, CUserLocal::DoActiveSkill_hook);
+    FsLog("hook", "skill aliases (DoActiveSkill): %s", bOk ? "ok" : "FAILED");
 }
