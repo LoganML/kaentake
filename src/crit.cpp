@@ -2,7 +2,6 @@
 #include "hook.h"
 #include "debug.h"
 #include "constants.h"
-#include <algorithm>
 
 // FreedomStory: built-in critical strike chance for every class (physical attacks).
 //
@@ -19,6 +18,11 @@
 //   on a crit the client adds this % of the hit)
 
 namespace {
+    // windows.h defines min/max macros (no NOMINMAX in pch.h), so no std::min/max/clamp here
+    inline int imax(int a, int b) { return a > b ? a : b; }
+    inline int imin(int a, int b) { return a < b ? a : b; }
+    inline int iclamp(int v, int lo, int hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
     // client functions (v83 GMS, from a memory dump of the running client)
     auto decode_secure_int = reinterpret_cast<int(__cdecl*)(void* p, int key)>(0x00416563);            // ZtlSecure<int>
     auto decode_secure_byte = reinterpret_cast<unsigned char(__cdecl*)(void* p, int key)>(0x0047465D); // ZtlSecure<unsigned char>
@@ -73,9 +77,9 @@ namespace {
         if (nTier == 0) {
             return 0;
         }
-        int nChance = std::clamp(g_aTierChance[nTier - 1], 0, 100);
-        int nDamage = g_nDamageBase + (std::max(nLevel - 10, 0) * g_nDamagePer10Levels) / 10;
-        nDamage = std::clamp(nDamage, 0, std::min(g_nDamageCap, 255));
+        int nChance = iclamp(g_aTierChance[nTier - 1], 0, 100);
+        int nDamage = g_nDamageBase + (imax(nLevel - 10, 0) * g_nDamagePer10Levels) / 10;
+        nDamage = iclamp(nDamage, 0, imin(g_nDamageCap, 255));
         return (nChance << 8) | nDamage;
     }
 
@@ -86,8 +90,8 @@ namespace {
             return nReal;
         }
         // higher chance and higher bonus of the two (a real Sharp Eyes still helps if it's stronger)
-        int nChance = std::max(nReal >> 8, nOwn >> 8);
-        int nDamage = std::max(nReal & 0xFF, nOwn & 0xFF);
+        int nChance = imax(nReal >> 8, nOwn >> 8);
+        int nDamage = imax(nReal & 0xFF, nOwn & 0xFF);
         return (nChance << 8) | nDamage;
     }
 }
