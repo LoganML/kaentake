@@ -23,3 +23,18 @@ void ErrorMessage(const char* pszFormat, ...) {
     MessageBoxA(nullptr, pszDest, "Error", MB_ICONERROR);
     va_end(argList);
 }
+void FsLog(const char* pszFormat, ...) {
+    char pszDest[1024];
+    va_list argList;
+    va_start(argList, pszFormat);
+    StringCbVPrintfA(pszDest, sizeof(pszDest), pszFormat, argList);
+    va_end(argList);
+    HANDLE h = CreateFileA(".\\FreedomStory.log", FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (h == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    DWORD dwWritten;
+    WriteFile(h, pszDest, static_cast<DWORD>(strlen(pszDest)), &dwWritten, nullptr);
+    WriteFile(h, "\r\n", 2, &dwWritten, nullptr);
+    CloseHandle(h);
+}

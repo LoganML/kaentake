@@ -10,3 +10,6 @@
 void DebugMessage(const char* sFormat, ...);
 
 void ErrorMessage(const char* sFormat, ...);
+
+// FreedomStory: append a line to FreedomStory.log in the game folder (opened/closed per call, so it survives crashes)
+void FsLog(const char* sFormat, ...);
