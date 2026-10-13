@@ -142,6 +142,9 @@ namespace {
     const uintptr_t STAT_DETAIL_HEIGHT = 0x008C5106;     // CUIStatDetail ctor: push 203 (window height)
     const unsigned int STAT_DETAIL_NEW_HEIGHT = 203 + 2 * 18;
     const uintptr_t STAT_DETAIL_BUTTON_Y = 0x008C2750;   // CUIStatDetail::OnCreate: push 182 (y of the "<" close button)
+    // the panel sits 144px below the stat window's top so both bottoms line up; with 36px more panel it moves up
+    // 36px to keep them lined up (opening it from two places, the slide animation, and following a moved window)
+    const uintptr_t STAT_DETAIL_OFFSET_Y[] = {0x008C4E92, 0x008C54AA, 0x008C57C0, 0x008C6C66}; // add eax, 0x90
     const uintptr_t STAT_DETAIL_DRAW_END = 0x008C448E;   // CUIStatDetail::Draw, after the JUMP value
     uintptr_t g_pStatDetailDrawResume = 0x008C4495;
     const uintptr_t WVSCONTEXT_SECONDARYSTAT = 0x2134;  // CWvsContext -> SecondaryStat (inline)
@@ -221,6 +224,9 @@ namespace {
 void AttachStatWindowCrit() {
     Patch4(STAT_DETAIL_HEIGHT, STAT_DETAIL_NEW_HEIGHT);
     Patch4(STAT_DETAIL_BUTTON_Y, 182 + 2 * 18); // keep the button in the bottom strip
+    for (uintptr_t uAddr : STAT_DETAIL_OFFSET_Y) {
+        Patch4(uAddr, 0x90 - 2 * 18);
+    }
     PatchJmp(STAT_DETAIL_DRAW_END, &stat_detail_draw_end_hook);
     PatchNop(STAT_DETAIL_DRAW_END + 5, g_pStatDetailDrawResume);
 }
