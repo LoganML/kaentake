@@ -1,0 +1,38 @@
+# FreedomStory: build on every push to main and publish it as the rolling "latest" release.
+# rebuild-server.bat on the server PC downloads Kaentake.dll from there.
+name: freedomstory-build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: freedomstory-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: configure
+      shell: bash
+      run: cmake --preset release-win32 -DFREEDOMSTORY_BUILD="${GITHUB_SHA::7}"
+    - name: build
+      run: cmake --build --preset release-win32
+    - name: publish latest
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        ls -la build/Release
+        gh release delete latest --yes --cleanup-tag || true
+        gh release create latest build/Release/Kaentake.dll build/Release/Kaentake.exe build/Release/Custom.wz \
+          --target "$GITHUB_SHA" --title "FreedomStory client build ${GITHUB_SHA::7}" \
+          --notes "Built automatically from ${GITHUB_SHA}. rebuild-server.bat downloads Kaentake.dll from here."

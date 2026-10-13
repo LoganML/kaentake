@@ -19,6 +19,10 @@ add_library(injector SHARED
 
 target_precompile_headers(injector PRIVATE pch.h)
 
+# FreedomStory: build label shown in the window title (CI passes the commit hash)
+set(FREEDOMSTORY_BUILD "dev" CACHE STRING "FreedomStory build label")
+target_compile_definitions(injector PRIVATE FREEDOMSTORY_BUILD="${FREEDOMSTORY_BUILD}")
+
 target_link_libraries(injector PRIVATE
     Detours
     WzLib

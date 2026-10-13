@@ -111,6 +111,9 @@ HWND WINAPI CreateWindowExA_hook(DWORD dwExStyle, LPCSTR lpClassName, LPCSTR lpW
     }
     HWND hWnd = CreateWindowExA_orig(dwExStyle, lpClassName, lpWindowName, 0xCA0000, CW_USEDEFAULT, CW_USEDEFAULT, nWidth, nHeight, hWndParent, hMenu, hInstance, lpParam);
     g_WndProc = reinterpret_cast<WNDPROC>(SetWindowLongPtrA(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(&WndProc_hook)));
+#ifdef FREEDOMSTORY_BUILD
+    SetWindowTextA(hWnd, "FreedomStory (" FREEDOMSTORY_BUILD ")"); // FreedomStory: shows which client build is running
+#endif
     return hWnd;
 }
 
