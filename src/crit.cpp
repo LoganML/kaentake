@@ -96,6 +96,37 @@ namespace {
     }
 }
 
+// --- tell the server which hits crit -------------------------------------------------------------
+// The v83 attack packet carries only damage numbers, so the server had to guess crits (damage above
+// its estimated max), which misses most built-in crits - other players didn't see them. The attack
+// info keeps, per mob, int aDamage[15] at +0x18 and int aCritical[15] at +0x54 (0x3C after each
+// damage). At the damage-encoding calls in the melee and ranged attack packets the register holding
+// &aDamage[i] is known; these stubs set the top bit of the encoded damage when that hit crit.
+// The server (AbstractDealDamageHandler) reads the bit, clears it, and shows the hit as a crit.
+namespace {
+    uintptr_t g_pEncode4 = 0x004065A6; // COutPacket::Encode4(unsigned int)
+
+    __declspec(naked) void encode_damage_eax() { // melee: eax = &aDamage[i], [esp+4] = value
+        __asm {
+            cmp dword ptr [eax + 0x3C], 0
+            je done
+            or dword ptr [esp + 4], 0x80000000
+        done:
+            jmp dword ptr [g_pEncode4]
+        }
+    }
+
+    __declspec(naked) void encode_damage_edi() { // ranged: edi = &aDamage[i]
+        __asm {
+            cmp dword ptr [edi + 0x3C], 0
+            je done
+            or dword ptr [esp + 4], 0x80000000
+        done:
+            jmp dword ptr [g_pEncode4]
+        }
+    }
+}
+
 void AttachCritMod() {
     const char* sConfig = ".\\" CONSTANTS_CONFIG_NAME;
     g_bEnabled = GetPrivateProfileIntA("crit", "enabled", 1, sConfig) != 0;
@@ -113,6 +144,8 @@ void AttachCritMod() {
     for (uintptr_t uAddr : SHARP_EYES_READS) {
         PatchCall(uAddr, &sharp_eyes_read_hook);
     }
+    PatchCall(0x00952B28, &encode_damage_eax); // CLOSE_RANGE_ATTACK damage list
+    PatchCall(0x00955428, &encode_damage_edi); // RANGED_ATTACK damage list
     FsLog("crit", "built-in crit on: chance %d/%d/%d/%d%%, bonus %d%% +%d.%d%%/level (cap %d%%)",
             g_aTierChance[0], g_aTierChance[1], g_aTierChance[2], g_aTierChance[3],
             g_nDamageBase, g_nDamagePer10Levels / 10, g_nDamagePer10Levels % 10, g_nDamageCap);
