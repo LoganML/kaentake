@@ -36,6 +36,14 @@ int CUserLocal::DoActiveSkill_hook(int nSkillID, int nScanCode, int* pnConsumeCh
 }
 
 void AttachFreedomStoryMods() {
+    // Never block character creation. The "Create a character" button (CLogin, 0x5F6425) looks up the
+    // selected world's bBlockCharCreation flag (server list entry +0x18) using the world *number* as an
+    // index into the world list. The server shows its single world as Windia (world 3, display offset),
+    // so the lookup reads past the one-entry list and random memory can block creation ("Due to the
+    // high population..."). je -> jmp skips that notice; the server never blocks creation anyway.
+    Patch1(0x005F6440, 0xEB);
+    FsLog("hook", "character creation block check: off");
+
     bool bOk = ATTACH_HOOK(CUserLocal::DoActiveSkill, CUserLocal::DoActiveSkill_hook);
     FsLog("hook", "skill aliases (DoActiveSkill): %s", bOk ? "ok" : "FAILED");
 }
