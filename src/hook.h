@@ -56,6 +56,7 @@ void AttachToolTipMod();
 void AttachIconIconMod();
 void AttachTempStatMod();
 void AttachFreedomStoryMods(); // freedomstory.cpp
+void AttachCritMod();          // crit.cpp
 
 inline void AttachClientHooks() {
     AttachClientBypass();
@@ -70,6 +71,7 @@ inline void AttachClientHooks() {
     AttachIconIconMod();
     AttachTempStatMod();
     AttachFreedomStoryMods();
+    AttachCritMod();
 }
 
 
