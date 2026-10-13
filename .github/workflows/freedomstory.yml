@@ -1,14 +1,15 @@
-# FreedomStory: build on every push to main and publish it as the rolling "latest" release.
-# rebuild-server.bat on the server PC downloads Kaentake.dll from there.
+# FreedomStory: build on every push and publish it as a rolling release:
+#   main -> "latest"  (tested; rebuild-server.bat installs it)
+#   dev  -> "dev"     (for testing; test-dev.bat installs it)
 name: freedomstory-build
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 concurrency:
-  group: freedomstory-build
+  group: freedomstory-build-${{ github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -26,13 +27,15 @@ jobs:
       run: cmake --preset release-win32 -DFREEDOMSTORY_BUILD="${GITHUB_SHA::7}"
     - name: build
       run: cmake --build --preset release-win32
-    - name: publish latest
+    - name: publish release
       shell: bash
       env:
         GH_TOKEN: ${{ github.token }}
       run: |
         ls -la build/Release
-        gh release delete latest --yes --cleanup-tag || true
-        gh release create latest build/Release/Kaentake.dll build/Release/Kaentake.exe build/Release/Custom.wz \
-          --target "$GITHUB_SHA" --title "FreedomStory client build ${GITHUB_SHA::7}" \
-          --notes "Built automatically from ${GITHUB_SHA}. rebuild-server.bat downloads Kaentake.dll from here."
+        if [ "$GITHUB_REF_NAME" = "main" ]; then TAG=latest; else TAG=dev; fi
+        gh release delete "$TAG" --yes --cleanup-tag || true
+        gh release create "$TAG" build/Release/Kaentake.dll build/Release/Kaentake.exe build/Release/Custom.wz \
+          --target "$GITHUB_SHA" --prerelease=$([ "$TAG" = dev ] && echo true || echo false) \
+          --title "FreedomStory client build ${GITHUB_SHA::7} ($GITHUB_REF_NAME)" \
+          --notes "Built automatically from ${GITHUB_SHA} on $GITHUB_REF_NAME."
