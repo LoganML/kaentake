@@ -43,6 +43,9 @@ public:
             return hr;
         }
         IWzPropertyPtr pProperty = get_rm()->GetObjectA(L"Custom/" + pArchive->absoluteUOL).GetUnknown();
+        Ztl_bstr_t sAbsoluteUOL = pArchive->absoluteUOL; // keep the string alive while we look at it
+        const wchar_t* sUOL = static_cast<const wchar_t*>(sAbsoluteUOL);
+        const bool bAddNewNodes = sUOL && wcsncmp(sUOL, L"Skill/", 6) == 0;
         IEnumVARIANTPtr pEnum = pProperty->_NewEnum;
         while (true) {
             Ztl_variant_t vNext;
@@ -55,10 +58,11 @@ public:
             IWzPropertyPtr pSub;
             if (!pUnk || FAILED(pUnk->QueryInterface(&pSub))) {
                 this->Add(sNext, pProperty->item[sNext], false);
-            } else {
+            } else if (bAddNewNodes) {
                 // FreedomStory: a sub-property only in Custom.wz (e.g. a skill added to another job's
                 // skill book) - add the whole node. Existing sub-properties are left alone; they get
-                // merged when they are serialized themselves.
+                // merged when they are serialized themselves. Limited to Skill/ data: Kaentake's own
+                // UI additions are read straight from Custom/ and must stay where they are.
                 VARIANT vExisting;
                 VariantInit(&vExisting);
                 HRESULT hrGet = this->get_item(sNext, &vExisting);
