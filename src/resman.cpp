@@ -55,6 +55,18 @@ public:
             IWzPropertyPtr pSub;
             if (!pUnk || FAILED(pUnk->QueryInterface(&pSub))) {
                 this->Add(sNext, pProperty->item[sNext], false);
+            } else {
+                // FreedomStory: a sub-property only in Custom.wz (e.g. a skill added to another job's
+                // skill book) - add the whole node. Existing sub-properties are left alone; they get
+                // merged when they are serialized themselves.
+                VARIANT vExisting;
+                VariantInit(&vExisting);
+                HRESULT hrGet = this->get_item(sNext, &vExisting);
+                bool bMissing = FAILED(hrGet) || V_VT(&vExisting) == VT_EMPTY;
+                VariantClear(&vExisting);
+                if (bMissing) {
+                    this->Add(sNext, pProperty->item[sNext], false);
+                }
             }
         }
         return S_OK;
