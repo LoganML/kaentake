@@ -4,7 +4,7 @@
 #include "constants.h"
 #include <cwchar>
 
-// FreedomStory: built-in critical strike chance for every class (physical attacks).
+// FreedomStory: built-in critical strike chance for every class (physical and magic attacks).
 //
 // The v83 client rolls crits only for bows/crossbows/claws/knuckles (their crit skills) or when
 // Sharp Eyes is active. Sharp Eyes is stored as one value: (chance << 8) | bonus damage %.
@@ -93,6 +93,25 @@ namespace {
         // higher chance and higher bonus of the two (a real Sharp Eyes still helps if it's stronger)
         int nChance = imax(nReal >> 8, nOwn >> 8);
         int nDamage = imax(nReal & 0xFF, nOwn & 0xFF);
+        return (nChance << 8) | nDamage;
+    }
+}
+
+// --- magic attacks --------------------------------------------------------------------------------
+// The magic damage code (MDamage) reads Sharp Eyes too (0x791792 chance, 0x7917B7 damage) but reads
+// the damage byte differently: a crit multiplies the hit by (value - 100)%, so 124 means +24%.
+// (Only Evans add a magic crit skill on top.) Same built-in crit, the damage byte given as 100 + bonus.
+namespace {
+    const uintptr_t MAGIC_SHARP_EYES_READS[] = {0x00791792, 0x007917B7};
+
+    int __cdecl magic_sharp_eyes_read_hook(void* p, int key) {
+        int nReal = decode_secure_int(p, key);
+        int nOwn = builtin_sharp_eyes();
+        if (nOwn == 0) {
+            return nReal;
+        }
+        int nChance = imax(nReal >> 8, nOwn >> 8);
+        int nDamage = imax(nReal & 0xFF, imin(100 + (nOwn & 0xFF), 255));
         return (nChance << 8) | nDamage;
     }
 }
@@ -251,6 +270,10 @@ void AttachCritMod() {
     }
     PatchCall(0x00952B28, &encode_damage_eax); // CLOSE_RANGE_ATTACK damage list
     PatchCall(0x00955428, &encode_damage_edi); // RANGED_ATTACK damage list
+    for (uintptr_t uAddr : MAGIC_SHARP_EYES_READS) {
+        PatchCall(uAddr, &magic_sharp_eyes_read_hook);
+    }
+    PatchCall(0x0095705E, &encode_damage_edi); // MAGIC_ATTACK damage list
     FsLog("crit", "built-in crit on: chance %d/%d/%d/%d%%, bonus %d%% +%d.%d%%/level (cap %d%%)",
             g_aTierChance[0], g_aTierChance[1], g_aTierChance[2], g_aTierChance[3],
             g_nDamageBase, g_nDamagePer10Levels / 10, g_nDamagePer10Levels % 10, g_nDamageCap);
