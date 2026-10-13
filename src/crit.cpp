@@ -2,6 +2,7 @@
 #include "hook.h"
 #include "debug.h"
 #include "constants.h"
+#include <cwchar>
 
 // FreedomStory: built-in critical strike chance for every class (physical attacks).
 //
@@ -127,6 +128,101 @@ namespace {
     }
 }
 
+// --- stat window: CRITICAL RATE / CRITICAL DMG. rows -------------------------------------------
+// The detail panel of the stat window (CUIStatDetail, background UI/UIWindow.img/Stat/backgrnd2)
+// draws its nine values (ATTACK .. JUMP) in one function. Custom.wz replaces the background with a
+// taller one that has two more rows under JUMP; here the window is made as tall as the new art and,
+// at the end of the draw function, the two values are drawn the same way the others are.
+// The numbers are what an attack would use right now: the built-in crit (or a stronger Sharp Eyes)
+// plus the class's own crit skill for the equipped weapon (Critical Throw, Critical Shot, ...).
+namespace {
+    auto get_critical_skill_level = reinterpret_cast<int(__cdecl*)(void* pCd, int nWeaponID, int nAttackType, int* pnProp, int* pnDamage)>(0x00765095);
+    auto get_secure_item_id = reinterpret_cast<int(__fastcall*)(void* pSecure, void* edx)>(0x0042873D); // ZtlSecure<long>::GetData (thiscall)
+
+    const uintptr_t STAT_DETAIL_HEIGHT = 0x008C5106;     // CUIStatDetail ctor: push 203 (window height)
+    const unsigned int STAT_DETAIL_NEW_HEIGHT = 203 + 2 * 18;
+    const uintptr_t STAT_DETAIL_DRAW_END = 0x008C448E;   // CUIStatDetail::Draw, after the JUMP value
+    uintptr_t g_pStatDetailDrawResume = 0x008C4495;
+    const uintptr_t WVSCONTEXT_SECONDARYSTAT = 0x2134;  // CWvsContext -> SecondaryStat (inline)
+    const uintptr_t SS_SHARP_EYES = 0x5DC;              // SecondaryStat: ZtlSecure<int> Sharp Eyes value (key at +8)
+    const int VALUE_X = 77, FIRST_ROW_Y = 170, ROW_PITCH = 18; // the other values: x 77, y 8 + 18 * row
+
+    // IWzCanvas::DrawTextA (vtable +0x98), called the way the client's own wrapper (0x4277AD) does
+    typedef HRESULT(__stdcall* canvas_draw_text_t)(void* pCanvas, int nLeft, int nTop, BSTR sText, void* pFont,
+            VARIANT vAlpha, VARIANT vTabOrg, int* pnRet);
+
+    void draw_value(void* pCanvas, void* pFont, int nTop, const wchar_t* sText) {
+        auto pfnDrawText = (*reinterpret_cast<canvas_draw_text_t**>(pCanvas))[0x98 / 4];
+        VARIANT vMissing;
+        VariantInit(&vMissing);
+        V_VT(&vMissing) = VT_ERROR;
+        V_ERROR(&vMissing) = DISP_E_PARAMNOTFOUND;
+        BSTR bsText = SysAllocString(sText);
+        int nRet = 0;
+        pfnDrawText(pCanvas, VALUE_X, nTop, bsText, pFont, vMissing, vMissing, &nRet);
+        SysFreeString(bsText);
+    }
+
+    // chance % and total crit damage % (100 = no bonus) the way the client's damage code adds them up
+    bool current_crit(void* pWeaponSlot, int& nChance, int& nDamage) {
+        uintptr_t pContext = *reinterpret_cast<uintptr_t*>(WVSCONTEXT_INSTANCE);
+        if (!pContext) {
+            return false;
+        }
+        void* pCd = *reinterpret_cast<void**>(pContext + WVSCONTEXT_CHARACTERDATA);
+        if (!pCd) {
+            return false;
+        }
+        int nSkillProp = 0, nSkillDamage = 0;
+        if (pWeaponSlot) {
+            int nWeaponID = get_secure_item_id(reinterpret_cast<char*>(pWeaponSlot) + 0xC, nullptr);
+            get_critical_skill_level(pCd, nWeaponID, 1, &nSkillProp, &nSkillDamage);
+        }
+        uintptr_t pSharpEyes = pContext + WVSCONTEXT_SECONDARYSTAT + SS_SHARP_EYES;
+        int nSharpEyes = sharp_eyes_read_hook(reinterpret_cast<void*>(pSharpEyes), *reinterpret_cast<int*>(pSharpEyes + 8));
+        nChance = imin(nSkillProp + iclamp(nSharpEyes >> 8, 0, 100), 100);
+        nDamage = (nSkillDamage > 0 ? nSkillDamage : 100) + (nSharpEyes & 0xFF);
+        if (nChance <= 0 || nDamage <= 100) {
+            nChance = 0;
+            nDamage = 100;
+        }
+        return true;
+    }
+
+    void __stdcall stat_detail_draw_crit(uintptr_t uEbp) {
+        void* pCanvas = *reinterpret_cast<void**>(uEbp - 0x24); // IWzCanvas* the values are drawn on
+        void* pFont = *reinterpret_cast<void**>(uEbp - 0x20);   // IWzFont* of the plain (unbuffed) values
+        void* pWeaponSlot = *reinterpret_cast<void**>(uEbp - 0x64);
+        int nChance, nDamage;
+        if (!pCanvas || !pFont || !current_crit(pWeaponSlot, nChance, nDamage)) {
+            return;
+        }
+        wchar_t sText[32];
+        swprintf_s(sText, L"%d%%", nChance);
+        draw_value(pCanvas, pFont, FIRST_ROW_Y, sText);
+        swprintf_s(sText, L"+%d%%", nDamage - 100);
+        draw_value(pCanvas, pFont, FIRST_ROW_Y + ROW_PITCH, sText);
+    }
+
+    __declspec(naked) void stat_detail_draw_end_hook() {
+        __asm {
+            pushad
+            push ebp
+            call stat_detail_draw_crit
+            popad
+            cmp dword ptr [ebp - 0x64], esi // the two instructions the jump replaced
+            mov byte ptr [ebp - 0x4], 6
+            jmp dword ptr [g_pStatDetailDrawResume]
+        }
+    }
+}
+
+void AttachStatWindowCrit() {
+    Patch4(STAT_DETAIL_HEIGHT, STAT_DETAIL_NEW_HEIGHT);
+    PatchJmp(STAT_DETAIL_DRAW_END, &stat_detail_draw_end_hook);
+    PatchNop(STAT_DETAIL_DRAW_END + 5, g_pStatDetailDrawResume);
+}
+
 void AttachCritMod() {
     const char* sConfig = ".\\" CONSTANTS_CONFIG_NAME;
     g_bEnabled = GetPrivateProfileIntA("crit", "enabled", 1, sConfig) != 0;
@@ -137,6 +233,7 @@ void AttachCritMod() {
     g_nDamageBase = GetPrivateProfileIntA("crit", "damage_base", g_nDamageBase, sConfig);
     g_nDamagePer10Levels = GetPrivateProfileIntA("crit", "damage_per_10_levels", g_nDamagePer10Levels, sConfig);
     g_nDamageCap = GetPrivateProfileIntA("crit", "damage_cap", g_nDamageCap, sConfig);
+    AttachStatWindowCrit(); // the stat window rows (they still show a class's own crit skill when off)
     if (!g_bEnabled) {
         FsLog("crit", "built-in crit disabled in config.ini");
         return;
