@@ -59,6 +59,7 @@ void AttachFreedomStoryMods(); // freedomstory.cpp
 void AttachCritMod();          // crit.cpp
 void AttachPetMod();           // pet.cpp
 void AttachFreeSkills();       // freeskills.cpp
+void AttachMesoExplosionMod(); // mesoexplosion.cpp
 
 inline void AttachClientHooks() {
     AttachClientBypass();
@@ -76,6 +77,7 @@ inline void AttachClientHooks() {
     AttachCritMod();
     AttachPetMod();
     AttachFreeSkills();
+    AttachMesoExplosionMod();
 }
 
 

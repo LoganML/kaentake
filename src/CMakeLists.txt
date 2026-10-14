@@ -16,6 +16,7 @@ add_library(injector SHARED
     crit.cpp
     pet.cpp
     freeskills.cpp
+    mesoexplosion.cpp
     stringpool.cpp
     debug.cpp
     hook.cpp
