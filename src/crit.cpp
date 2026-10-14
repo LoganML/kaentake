@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <cmath>
 #include "hook.h"
 #include "debug.h"
 #include "constants.h"
@@ -42,6 +43,11 @@ namespace {
     int g_nDamageBase = 20;        // % at level 10
     int g_nDamagePer10Levels = 4;  // +0.4% per level
     int g_nDamageCap = 155;
+    // chance also climbs with level, from 5% at level 10 to chance_max at chance_max_level along a curve
+    // (curve 20 = squared: slow early, fast late); the job value above is the minimum
+    int g_nChanceMax = 100;
+    int g_nChanceMaxLevel = 200;
+    int g_nChanceCurve = 20;       // exponent x10
 
     bool get_job_level(int& nJob, int& nLevel) {
         uintptr_t pContext = *reinterpret_cast<uintptr_t*>(WVSCONTEXT_INSTANCE);
@@ -69,6 +75,17 @@ namespace {
         return nSub == 0 ? 2 : (nSub == 1 ? 3 : 4); // 420 Bandit, 421 Chief Bandit, 422 Shadower
     }
 
+    int level_chance(int nLevel) {
+        const int nStart = 10, nStartChance = 5;
+        int nEnd = imax(g_nChanceMaxLevel, nStart + 1);
+        if (g_nChanceMax <= nStartChance || nLevel <= nStart) {
+            return 0;
+        }
+        double t = static_cast<double>(imin(nLevel, nEnd) - nStart) / (nEnd - nStart);
+        double dCurve = imax(g_nChanceCurve, 1) / 10.0;
+        return static_cast<int>(nStartChance + (g_nChanceMax - nStartChance) * std::pow(t, dCurve));
+    }
+
     int builtin_sharp_eyes() {
         int nJob, nLevel;
         if (!g_bEnabled || !get_job_level(nJob, nLevel)) {
@@ -78,7 +95,8 @@ namespace {
         if (nTier == 0) {
             return 0;
         }
-        int nChance = iclamp(g_aTierChance[nTier - 1], 0, 100);
+        int nChance = imax(g_aTierChance[nTier - 1], level_chance(nLevel));
+        nChance = iclamp(nChance, 0, 100);
         int nDamage = g_nDamageBase + (imax(nLevel - 10, 0) * g_nDamagePer10Levels) / 10;
         nDamage = iclamp(nDamage, 0, imin(g_nDamageCap, 255));
         return (nChance << 8) | nDamage;
@@ -260,6 +278,9 @@ void AttachCritMod() {
     g_nDamageBase = GetPrivateProfileIntA("crit", "damage_base", g_nDamageBase, sConfig);
     g_nDamagePer10Levels = GetPrivateProfileIntA("crit", "damage_per_10_levels", g_nDamagePer10Levels, sConfig);
     g_nDamageCap = GetPrivateProfileIntA("crit", "damage_cap", g_nDamageCap, sConfig);
+    g_nChanceMax = GetPrivateProfileIntA("crit", "chance_max", g_nChanceMax, sConfig);
+    g_nChanceMaxLevel = GetPrivateProfileIntA("crit", "chance_max_level", g_nChanceMaxLevel, sConfig);
+    g_nChanceCurve = GetPrivateProfileIntA("crit", "chance_curve", g_nChanceCurve, sConfig);
     AttachStatWindowCrit(); // the stat window rows (they still show a class's own crit skill when off)
     if (!g_bEnabled) {
         FsLog("crit", "built-in crit disabled in config.ini");
@@ -277,4 +298,6 @@ void AttachCritMod() {
     FsLog("crit", "built-in crit on: chance %d/%d/%d/%d%%, bonus %d%% +%d.%d%%/level (cap %d%%)",
             g_aTierChance[0], g_aTierChance[1], g_aTierChance[2], g_aTierChance[3],
             g_nDamageBase, g_nDamagePer10Levels / 10, g_nDamagePer10Levels % 10, g_nDamageCap);
+    FsLog("crit", "crit chance climbs to %d%% at level %d (curve %d.%d)",
+            g_nChanceMax, g_nChanceMaxLevel, g_nChanceCurve / 10, g_nChanceCurve % 10);
 }
