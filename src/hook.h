@@ -58,6 +58,7 @@ void AttachTempStatMod();
 void AttachFreedomStoryMods(); // freedomstory.cpp
 void AttachCritMod();          // crit.cpp
 void AttachPetMod();           // pet.cpp
+void AttachFreeSkills();       // freeskills.cpp
 
 inline void AttachClientHooks() {
     AttachClientBypass();
@@ -74,6 +75,7 @@ inline void AttachClientHooks() {
     AttachFreedomStoryMods();
     AttachCritMod();
     AttachPetMod();
+    AttachFreeSkills();
 }
 
 
