@@ -16,6 +16,7 @@ struct SkillAlias {
 
 static const SkillAlias g_aSkillAlias[] = {
     {4211010, 4111006}, // Chief Bandit: Flash Jump (Hermit's)
+    {4211011, 4111002}, // Chief Bandit: Shadow Partner (Hermit's)
 };
 
 class CUserLocal {

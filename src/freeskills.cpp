@@ -5,7 +5,8 @@
 // FreedomStory: free skills don't use up a skill tab.
 //
 // The server gives some skills for free at max level (server/custom/FreeSkills.java): Haste for a Bandit,
-// Flash Jump (4211010 + the Hermit's 4111006 it runs) for a Chief Bandit.
+// Flash Jump (4211010 + the Hermit's 4111006 it runs) and Shadow Partner (4211011 + the Hermit's 4111002)
+// for a Chief Bandit.
 //
 // When you add a point to a skill, the client (0x8ACFC5..0x8AD231) adds up the points in all the skills you
 // have from that job level and refuses with "You're lacking Level 1 (or 2) Skills." when the tab is already
@@ -22,6 +23,8 @@ namespace {
         4201003, // Bandit: Haste
         4211010, // Chief Bandit: Flash Jump
         4111006, // Hermit: Flash Jump (granted with the Chief Bandit's)
+        4211011, // Chief Bandit: Shadow Partner
+        4111002, // Hermit: Shadow Partner (granted with the Chief Bandit's)
     };
 
     uintptr_t g_pZMapGetNext = 0x004E87BE; // ZMap<long, int>::GetNext
@@ -70,5 +73,5 @@ void AttachFreeSkills() {
     for (uintptr_t uAddr : CALLS) {
         PatchCall(uAddr, &free_skill_get_next);
     }
-    FsLog("skills", "free skills (Haste, Flash Jump) don't count toward the skill tab limits");
+    FsLog("skills", "free skills (Haste, Flash Jump, Shadow Partner) don't count toward the skill tab limits");
 }
