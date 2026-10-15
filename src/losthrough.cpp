@@ -27,8 +27,6 @@ namespace {
         if (CheckLine(pSpace, x, y, pnTargetX, pnTargetY, nLayer)) {
             return 1;
         }
-        FsLog("los", "terrain between (%d,%d) and the target (%d,%d) at (%d,%d): attack goes through",
-              x, y, nTargetX, nTargetY, *pnTargetX, *pnTargetY);
         *pnTargetX = nTargetX;
         *pnTargetY = nTargetY;
         return 1;
