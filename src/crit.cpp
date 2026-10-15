@@ -1,4 +1,5 @@
 #include "pch.h"
+#include <cstring>
 #include <cmath>
 #include "hook.h"
 #include "debug.h"
@@ -295,6 +296,19 @@ void AttachCritMod() {
         PatchCall(uAddr, &magic_sharp_eyes_read_hook);
     }
     PatchCall(0x0095705E, &encode_damage_edi); // MAGIC_ATTACK damage list
+
+    // Assassinate (4221001): the client only rolls crits for it on one special attack animation (action 60);
+    // every other Assassinate hit skipped the crit roll (0x7900EE: Assassinate and two other skills,
+    // "if action != 60 skip crit"). Take Assassinate out of that list so all its hits can crit.
+    if (GetPrivateProfileIntA("crit", "assassinate_crit", 1, sConfig)) {
+        const unsigned char ASSASSINATE_CHECK[] = {0x81, 0x7D, 0xD8, 0x49, 0x68, 0x40, 0x00}; // cmp [ebp-28], 4221001
+        if (memcmp(reinterpret_cast<void*>(0x00790100), ASSASSINATE_CHECK, sizeof(ASSASSINATE_CHECK)) == 0) {
+            Patch4(0x00790103, 0xFFFFFFFF); // compare against a skill id that doesn't exist
+            FsLog("crit", "Assassinate can crit on every hit");
+        } else {
+            FsLog("crit", "Assassinate crit: unexpected client code, not patched");
+        }
+    }
     FsLog("crit", "built-in crit on: chance %d/%d/%d/%d%%, bonus %d%% +%d.%d%%/level (cap %d%%)",
             g_aTierChance[0], g_aTierChance[1], g_aTierChance[2], g_aTierChance[3],
             g_nDamageBase, g_nDamagePer10Levels / 10, g_nDamagePer10Levels % 10, g_nDamageCap);
