@@ -18,6 +18,7 @@ add_library(injector SHARED
     freeskills.cpp
     mesoexplosion.cpp
     shadowmelee.cpp
+    statmax.cpp
     stringpool.cpp
     debug.cpp
     hook.cpp

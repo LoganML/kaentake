@@ -61,6 +61,7 @@ void AttachPetMod();           // pet.cpp
 void AttachFreeSkills();       // freeskills.cpp
 void AttachMesoExplosionMod(); // mesoexplosion.cpp
 void AttachShadowMelee();      // shadowmelee.cpp
+void AttachStatMaxButtons();   // statmax.cpp
 
 inline void AttachClientHooks() {
     AttachClientBypass();
@@ -80,6 +81,7 @@ inline void AttachClientHooks() {
     AttachFreeSkills();
     AttachMesoExplosionMod();
     AttachShadowMelee();
+    AttachStatMaxButtons();
 }
 
 
