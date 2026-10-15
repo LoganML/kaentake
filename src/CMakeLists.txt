@@ -19,6 +19,7 @@ add_library(injector SHARED
     mesoexplosion.cpp
     shadowmelee.cpp
     statmax.cpp
+    losthrough.cpp
     stringpool.cpp
     debug.cpp
     hook.cpp

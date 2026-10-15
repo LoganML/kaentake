@@ -62,6 +62,7 @@ void AttachFreeSkills();       // freeskills.cpp
 void AttachMesoExplosionMod(); // mesoexplosion.cpp
 void AttachShadowMelee();      // shadowmelee.cpp
 void AttachStatMaxButtons();   // statmax.cpp
+void AttachLockedOnThroughTerrain(); // losthrough.cpp
 
 inline void AttachClientHooks() {
     AttachClientBypass();
@@ -82,6 +83,7 @@ inline void AttachClientHooks() {
     AttachMesoExplosionMod();
     AttachShadowMelee();
     AttachStatMaxButtons();
+    AttachLockedOnThroughTerrain();
 }
 
 
