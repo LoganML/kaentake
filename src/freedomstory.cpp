@@ -45,6 +45,27 @@ void AttachFreedomStoryMods() {
     Patch1(0x005F6440, 0xEB);
     FsLog("hook", "character creation block check: off");
 
+    // Beginners can place AP at any level. The stat window locks the AP up buttons for Beginner jobs
+    // (0, 1000, 2000, 2001) at level 10 and below ("Basic Stats": the official server auto-assigned
+    // their AP; ours doesn't, USE_AUTOASSIGN_STARTERS_AP is off). Each check is
+    // `cmp al, 0x0A; ja <normal>` on the level, so the level limit 10 -> 0 turns it off
+    // (the same edit the HeavenMS localhost has):
+    //   0x8C7A6C  CUIStat button setup: deletes the six AP up buttons
+    //   0x8C61A4  CUIStat draw: Beginner layout of the AP area
+    //   0x8C53F0  CUIStat tooltip: the "Basic Stats" tooltip
+    const uintptr_t aBeginnerApLevel[] = {0x008C7A6C, 0x008C61A4, 0x008C53F0};
+    int nBeginnerAp = 0;
+    for (uintptr_t uAddr : aBeginnerApLevel) {
+        const unsigned char* p = reinterpret_cast<const unsigned char*>(uAddr);
+        if (p[0] == 0x3C && (p[1] == 0x0A || p[1] == 0x00)) { // cmp al, 10 (or already 0)
+            Patch1(uAddr + 1, 0x00);
+            nBeginnerAp++;
+        } else {
+            FsLog("hook", "beginner AP: unexpected bytes at 0x%08X (%02X %02X), not patched", uAddr, p[0], p[1]);
+        }
+    }
+    FsLog("hook", "beginner AP lock: %d/3 off", nBeginnerAp);
+
     bool bOk = ATTACH_HOOK(CUserLocal::DoActiveSkill, CUserLocal::DoActiveSkill_hook);
     FsLog("hook", "skill aliases (DoActiveSkill): %s", bOk ? "ok" : "FAILED");
 }
